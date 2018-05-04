@@ -207,3 +207,5 @@ public class PropertiesSchema extends AbstractSchema<Properties> {
 }
 ```
 PropertiesSchema继承AbstractSchema，基于properties api将properties数据转化成对象。
+
+单元测试：https://github.com/zicat/start-java/tree/master/configuration/src/test/java/name/zicat/configuration/test/schema
