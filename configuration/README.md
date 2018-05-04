@@ -209,3 +209,126 @@ public class PropertiesSchema extends AbstractSchema<Properties> {
 PropertiesSchema继承AbstractSchema，基于properties api将properties数据转化成对象。
 
 单元测试：https://github.com/zicat/start-java/tree/master/configuration/src/test/java/name/zicat/configuration/test/schema
+
+有了文件格式Schema对象抽象后，再对数据源抽象成Configuration，代码如下：
+```java
+package name.zicat.cofiguration;
+
+import name.zicat.cofiguration.schema.AbstractSchema;
+
+/**
+ *
+ * @param <T>
+ */
+public abstract class Configuration<T> {
+
+    protected AbstractSchema<T> abstractSchema;
+    protected T instance;
+
+    public Configuration(AbstractSchema<T> abstractSchema) {
+
+        if(abstractSchema == null)
+            throw new NullPointerException("abstractSchema is null");
+
+        this.abstractSchema = abstractSchema;
+    }
+
+
+    /**
+     *
+     * @return
+     */
+    protected abstract T load() throws Exception;
+
+    public T createInstance() throws Exception {
+        instance = load();
+        return instance;
+    }
+
+    public T getInstance() {
+        return instance;
+    }
+}
+```
+Configuration核心成员为AbstractSchema<T>，定义抽象方法T load(),createInstance()内部调用load()构建instance。
+
+
+```java
+package name.zicat.cofiguration;
+
+
+import name.zicat.cofiguration.schema.AbstractSchema;
+
+import java.io.InputStream;
+import java.net.URL;
+
+/**
+ *
+ * @param <T>
+ */
+public class LocalConfiguration<T> extends Configuration<T> {
+
+    protected URL url;
+
+    public LocalConfiguration(URL url, AbstractSchema<T> abstractSchema) {
+
+        super(abstractSchema);
+        if(url == null)
+            throw new NullPointerException("url is null");
+        this.url = url;
+    }
+
+
+    @Override
+    protected T load() throws Exception{
+
+        InputStream in = null;
+        try {
+            in = url.openStream();
+            return abstractSchema.parse(in);
+        } finally {
+            if(in != null)
+                in.close();
+        }
+    }
+}
+```
+LocalConfiguration继承Configuration，本地文件通过URL进行资源定位，T load()将url构造inputstream，通过schema代理构造T对象。
+
+```java
+package name.zicat.cofiguration;
+
+import name.zicat.cofiguration.schema.AbstractSchema;
+
+/**
+ *
+ * @param <T>
+ */
+public class ZookeeperConfiguration<T> extends Configuration<T> {
+
+    private String zkHost;
+    private String path;
+
+    public ZookeeperConfiguration(String zkHost, String path, AbstractSchema<T> abstractSchema) {
+
+        super(abstractSchema);
+        if(zkHost == null)
+            throw new NullPointerException("zkHost is null");
+
+        if(path == null)
+            throw new NullPointerException("path is null");
+        this.zkHost = zkHost;
+        this.path = path;
+    }
+
+    @Override
+    protected T load() throws Exception {
+        return null; //todo
+    }
+}
+```
+ZookeeperConfiguration继承Configuration，zookeeper文件通过zkHost和path进行资源定位，T load()可以通过zookeeper api实现。
+
+可以看到无论是ZookeeperConfiguration还是LocalConfiguration，都不关心文件格式，只关心如何将各自的数据源转化成Schema的输入即可。实现了数据源和格式的隔离。
+添加新的数据源后，该数据源即可支持Schema实现的所有格式。添加一个新的Schema格式后，所有数据源不需要改动代码即可直接支持。
+测试用例：https://github.com/zicat/start-java/blob/master/configuration/src/test/java/name/zicat/configuration/test/LocalConfigurationTest.java
